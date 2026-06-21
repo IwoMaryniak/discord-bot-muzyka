@@ -20,5 +20,5 @@ jobs:
         run: |
           git config --global user.email "psiak@example.com"
           git config --global user.name "psiak"
-          git remote add hf https://psiak:$HF_TOKEN@huggingface.co/spaces/psiak/moj-grajek
+          git remote add hf https://psiak:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/psiak/moj-grajek
           git push --force hf main
