@@ -57,9 +57,9 @@ async def on_ready():
     print(f'Zalogowano pomyślnie jako: {bot.user.name}')
     
     # Automatyczne ustawianie animowanego profilowego z repozytorium GitHub
-    if os.path.exists("Avatar.gif"):
+    if os.path.exists("avatar.gif"):
         try:
-            with open("Avatar.gif", "rb") as f:
+            with open("avatar.gif", "rb") as f:
                 avatar_bytes = f.read()
             await bot.user.edit(avatar=avatar_bytes)
             print("Pomyślnie zaktualizowano animowany awatar bota!")
