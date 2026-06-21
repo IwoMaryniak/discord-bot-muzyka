@@ -82,12 +82,14 @@ async def play_next(interaction, guild_id):
             voice_client.play(source, after=lambda e: bot.loop.create_task(play_next(interaction, guild_id)))
             await interaction.channel.send(f"🎶 Teraz gram z kolejki: **{next_title}**")
         except Exception as e:
+            print(f"Błąd odtwarzania kolejnego utworu: {e}")
             await interaction.channel.send(f"❌ Błąd podczas odtwarzania kolejnego utworu: {e}")
 
 @bot.tree.command(name="play", description="Puszcza muzykę z YT/linku lub wyszukuje po nazwie")
 @app_commands.describe(utwor="Wklej link (np. z YT) lub wpisz tytuł piosenki")
 async def play(interaction: discord.Interaction, utwor: str):
     await interaction.response.defer()
+    print("KROK 1: Przyjęto komendę /play")
 
     if not interaction.user.voice:
         await interaction.followup.send("❌ Musisz najpierw wejść na kanał głosowy!")
@@ -96,32 +98,45 @@ async def play(interaction: discord.Interaction, utwor: str):
     voice_channel = interaction.user.voice.channel
     voice_client = interaction.guild.voice_client
 
-    if not voice_client:
-        voice_client = await voice_channel.connect()
-    elif voice_client.channel != voice_channel:
-        await voice_client.move_to(voice_channel)
+    print("KROK 2: Próba dołączenia na kanał głosowy...")
+    try:
+        if not voice_client:
+            # Timeout na 15 sekund, żeby uniknąć nieskończonego zawieszenia
+            voice_client = await voice_channel.connect(timeout=15.0)
+        elif voice_client.channel != voice_channel:
+            await voice_client.move_to(voice_channel)
+    except Exception as e:
+        print(f"BŁĄD POŁĄCZENIA Z KANAŁEM: {e}")
+        await interaction.followup.send("❌ Serwer napotkał problem z połączeniem głosowym Discorda. Zobacz logi.")
+        return
 
+    print("KROK 3: Połączono z kanałem! Wyszukiwanie utworu...")
     guild_id = interaction.guild_id
     if guild_id not in queues:
         queues[guild_id] = []
 
     query = utwor
     
-    # SYSTEM WYKRYWANIA:
-    # Jeśli to NIE jest link (nie zaczyna się od http), szukaj tekstu na SoundCloud (bezpieczne, nie zacina serwera)
+    # Jeśli to NIE jest link, szukamy na SoundCloud (omija bany na IP z YouTube)
     if not query.startswith("http://") and not query.startswith("https://"):
         query = f"scsearch:{query}"
-    
-    # Jeśli to JEST link, yt-dlp obsłuży go bezpośrednio (np. link do YouTube, SoundCloud, itp.)
 
     loop = asyncio.get_event_loop()
     try:
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(query, download=False))
+        data = await asyncio.wait_for(
+            loop.run_in_executor(None, lambda: ytdl.extract_info(query, download=False)),
+            timeout=20.0
+        )
+    except asyncio.TimeoutError:
+        print("BŁĄD: Wyszukiwanie trwało zbyt długo (Timeout).")
+        await interaction.followup.send("❌ Wyszukiwanie trwało zbyt długo i zostało przerwane.")
+        return
     except Exception as e:
+        print(f"BŁĄD WYSZUKIWANIA: {e}")
         await interaction.followup.send(f"❌ Nie udało się pobrać utworu (Błąd: {e}).")
         return
 
-    # Wyciąganie pierwszego wyniku, jeśli to było wyszukiwanie tekstowe
+    print("KROK 4: Znaleziono utwór. Uruchamianie odtwarzacza...")
     if 'entries' in data:
         if not data['entries']:
             await interaction.followup.send("❌ Nie znaleziono żadnego pasującego utworu.")
@@ -136,10 +151,13 @@ async def play(interaction: discord.Interaction, utwor: str):
             source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
             voice_client.play(source, after=lambda e: bot.loop.create_task(play_next(interaction, guild_id)))
             await interaction.followup.send(f"▶️ Teraz gram: **{title}**")
+            print("KROK 5: Odtwarzanie rozpoczęte pomyślnie!")
         else:
             queues[guild_id].append((url, title))
             await interaction.followup.send(f"📁 Dodano do kolejki: **{title}**")
+            print("KROK 5: Dodano do kolejki pomyślnie!")
     except Exception as e:
+        print(f"BŁĄD ODTWARZACZA: {e}")
         await interaction.followup.send(f"❌ Problem z odtwarzaczem audio: {e}")
 
 if __name__ == "__main__":
