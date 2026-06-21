@@ -15,10 +15,9 @@ jobs:
           lfs: true
 
       - name: Push to HF
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          git config --global user.email "psiak@example.com"
-          git config --global user.name "psiak"
-          git remote add hf https://psiak:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/psiak/moj-grajek
-          git push --force hf main
+        uses: Customis/huggingface-spaces-sync-action@v1.1.2
+        with:
+          github_repo: "ppsiakhaker/NAZWA_TWOJEGO_REPOZYTORIUM_NA_GITHUBIE"
+          huggingface_repo: "psiak/NAZWA_TWOJEGO_PROJEKTU_NA_HF"
+          hf_token: ${{ secrets.HF_TOKEN }}
+          target_branch: "main"
