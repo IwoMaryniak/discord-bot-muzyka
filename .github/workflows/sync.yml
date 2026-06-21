@@ -3,15 +3,13 @@ name: Sync to Hugging Face Spaces
 on:
   push:
     branches: [main]
-
-  # Pozwala też na ręczne odpalenie synchronizacji w zakładce Actions
   workflow_dispatch:
 
 jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
@@ -19,4 +17,8 @@ jobs:
       - name: Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://psiak:$HF_TOKEN@huggingface.co/spaces/psiak/moj-grajek main
+        run: |
+          git config --global user.email "psiak@example.com"
+          git config --global user.name "psiak"
+          git remote add hf https://psiak:$HF_TOKEN@huggingface.co/spaces/psiak/moj-grajek
+          git push --force hf main
